@@ -280,10 +280,42 @@ const bioMat = new THREE.PointsMaterial({
 scene.add(new THREE.Points(bioGeo, bioMat))
 
 // ============================================
+// CREATURE SHADER (wiggle/undulate effect)
+// ============================================
+const creatureVertShader = `
+  uniform float uTime;
+  uniform float uWiggle;    // wiggle intensity
+  uniform float uWiggleFreq; // wiggle frequency
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    vec3 pos = position;
+    // Wiggle: bottom of creature moves more than top (tentacles/tail)
+    float bottomFactor = 1.0 - uv.y; // 0 at top, 1 at bottom
+    pos.x += sin(uTime * uWiggleFreq + pos.y * 3.0) * uWiggle * bottomFactor;
+    // Gentle sway for the whole body
+    pos.x += sin(uTime * uWiggleFreq * 0.5) * uWiggle * 0.2;
+    pos.y += cos(uTime * uWiggleFreq * 0.3 + 1.0) * uWiggle * 0.15;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+  }
+`
+
+const creatureFragShader = `
+  uniform sampler2D uTexture;
+  uniform float uOpacity;
+  varying vec2 vUv;
+  void main() {
+    vec4 tex = texture2D(uTexture, vUv);
+    if (tex.a < 0.05) discard;
+    gl_FragColor = vec4(tex.rgb, tex.a * uOpacity);
+  }
+`
+
+// ============================================
 // CREATURES
 // ============================================
 const textureLoader = new THREE.TextureLoader()
-const allSprites = []
+const allCreatures = []
 let glowLightCount = 0
 const MAX_GLOW_LIGHTS = 6
 
@@ -294,28 +326,49 @@ CREATURES.forEach((def) => {
 
   for (let i = 0; i < def.count; i++) {
     const s = def.size * (0.85 + Math.random()*0.3)
-    const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, alphaTest: 0.05, depthWrite: false })
-    const sprite = new THREE.Sprite(mat)
-    sprite.scale.set(s, s, 1)
+
+    // Billboard plane with wiggle shader
+    const geo = new THREE.PlaneGeometry(s, s, 8, 8) // subdivided for vertex wiggle
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTexture: { value: texture },
+        uTime: { value: 0 },
+        uWiggle: { value: def.speed > 0.1 ? 0.15 : (def.speed > 0 ? 0.25 : 0.05) },
+        uWiggleFreq: { value: 1.5 + Math.random() * 1.5 },
+        uOpacity: { value: 0.95 },
+      },
+      vertexShader: creatureVertShader,
+      fragmentShader: creatureFragShader,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    })
+
+    const mesh = new THREE.Mesh(geo, mat)
 
     const zS = zone.pStart*WORLD_DEPTH, zE = zone.pEnd*WORLD_DEPTH
     const z = -(zS + Math.random()*(zE-zS))
     const x = THREE.MathUtils.lerp(def.x[0], def.x[1], Math.random())
     const y = THREE.MathUtils.lerp(def.y[0], def.y[1], Math.random())
 
-    sprite.position.set(x, y, z)
-    sprite.userData = { speed: def.speed, swim: def.swim, ox: x, oy: y, px: Math.random()*Math.PI*2, py: Math.random()*Math.PI*2 }
+    mesh.position.set(x, y, z)
+    mesh.userData = {
+      speed: def.speed, swim: def.swim,
+      ox: x, oy: y,
+      px: Math.random()*Math.PI*2, py: Math.random()*Math.PI*2,
+      isBillboard: true,
+    }
 
-    scene.add(sprite)
-    allSprites.push(sprite)
+    scene.add(mesh)
+    allCreatures.push(mesh)
 
     // Limited glow lights
     if (def.glow && glowLightCount < MAX_GLOW_LIGHTS && i === 0) {
       const gl = new THREE.PointLight(def.glow, def.glowI, 20)
-      gl.position.copy(sprite.position)
+      gl.position.copy(mesh.position)
       scene.add(gl)
-      sprite.userData.gl = gl
-      sprite.userData.glBase = def.glowI
+      mesh.userData.gl = gl
+      mesh.userData.glBase = def.glowI
       glowLightCount++
     }
   }
@@ -535,19 +588,32 @@ function animate() {
   chromaticEffect.offset.set(0.0005 + scrollProgress*0.002, 0.0005 + scrollProgress*0.002)
   vignetteEffect.darkness = 0.4 + scrollProgress * 0.6
 
-  // Creatures swim
-  allSprites.forEach((s) => {
-    const u = s.userData
+  // Creatures swim + billboard + wiggle shader
+  allCreatures.forEach((mesh) => {
+    const u = mesh.userData
+
+    // Billboard: always face camera
+    if (u.isBillboard) {
+      mesh.quaternion.copy(camera.quaternion)
+    }
+
+    // Update wiggle shader time
+    if (mesh.material.uniforms) {
+      mesh.material.uniforms.uTime.value = t
+    }
+
     if (u.swim === 0) return
+
+    // Swim across screen
     const drift = u.speed * 0.8
     u.ox += drift * 0.016 * (u.px > Math.PI ? 1 : -1)
     if (u.ox > 18) u.ox = -18
     if (u.ox < -18) u.ox = 18
-    s.position.x = u.ox + Math.sin(t*u.speed*1.5+u.px)*u.swim*0.3
-    s.position.y = u.oy + Math.sin(t*u.speed*0.8+u.py)*(u.swim*0.4)
-    s.material.rotation = Math.sin(t*u.speed+u.px)*0.06
+    mesh.position.x = u.ox + Math.sin(t*u.speed*1.5+u.px)*u.swim*0.3
+    mesh.position.y = u.oy + Math.sin(t*u.speed*0.8+u.py)*(u.swim*0.4)
+
     if (u.gl) {
-      u.gl.position.copy(s.position)
+      u.gl.position.copy(mesh.position)
       u.gl.intensity = u.glBase*(0.6+Math.sin(t+u.px)*0.4)
     }
   })
