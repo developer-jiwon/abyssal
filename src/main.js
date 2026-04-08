@@ -385,9 +385,11 @@ function initAudio() {
   audioStarted = true
 
   const ctx = new (window.AudioContext || window.webkitAudioContext)()
+  if (ctx.state === 'suspended') ctx.resume()
   const master = ctx.createGain()
   master.gain.value = 1.0
   master.connect(ctx.destination)
+  audio.ctx = ctx
 
   // --- Layer 1: Deep ocean drone (low, majestic) ---
   const drone1 = ctx.createOscillator()
@@ -510,11 +512,15 @@ function initAudio() {
   audio.whaleGain = whaleGain
 }
 
-document.addEventListener('click', initAudio, { once: true })
-document.addEventListener('scroll', initAudio, { once: true })
+// Start audio on ANY user interaction
+;['click', 'touchstart', 'scroll', 'wheel', 'keydown', 'mousedown'].forEach((evt) => {
+  document.addEventListener(evt, initAudio, { once: true })
+  window.addEventListener(evt, initAudio, { once: true })
+})
 
 function updateAudio() {
   if (!audio.drone1Gain) return
+  if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume()
   const p = scrollProgress
 
   // Drone: gets deeper and louder
