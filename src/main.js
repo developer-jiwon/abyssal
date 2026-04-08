@@ -386,24 +386,24 @@ function initAudio() {
 
   const ctx = new (window.AudioContext || window.webkitAudioContext)()
   const master = ctx.createGain()
-  master.gain.value = 0.7
+  master.gain.value = 1.0
   master.connect(ctx.destination)
 
   // --- Layer 1: Deep ocean drone (low, majestic) ---
   const drone1 = ctx.createOscillator()
   drone1.type = 'sine'
-  drone1.frequency.value = 55 // A1 — deep, musical
+  drone1.frequency.value = 55
   const drone1Gain = ctx.createGain()
-  drone1Gain.gain.value = 0.08
+  drone1Gain.gain.value = 0.2
   drone1.connect(drone1Gain).connect(master)
   drone1.start()
 
   // Sub-octave for weight
   const drone2 = ctx.createOscillator()
   drone2.type = 'sine'
-  drone2.frequency.value = 27.5 // A0 — sub bass
+  drone2.frequency.value = 27.5
   const drone2Gain = ctx.createGain()
-  drone2Gain.gain.value = 0.06
+  drone2Gain.gain.value = 0.15
   drone2.connect(drone2Gain).connect(master)
   drone2.start()
 
@@ -438,7 +438,7 @@ function initAudio() {
   bubbleBP.frequency.value = 600
   bubbleBP.Q.value = 3
   const bubbleGain = ctx.createGain()
-  bubbleGain.gain.value = 0.02
+  bubbleGain.gain.value = 0.06
   bubbleNoise.connect(bubbleBP).connect(bubbleGain).connect(master)
   bubbleNoise.start()
 
@@ -473,7 +473,7 @@ function initAudio() {
     // Only in shallow-mid depths
     if (scrollProgress < 0.5) {
       whaleGain.gain.setValueAtTime(0, now)
-      whaleGain.gain.linearRampToValueAtTime(0.04, now + 2)
+      whaleGain.gain.linearRampToValueAtTime(0.12, now + 2)
       whaleGain.gain.linearRampToValueAtTime(0, now + 6)
       whale.frequency.setValueAtTime(200 + Math.random() * 80, now)
       whale.frequency.linearRampToValueAtTime(120 + Math.random() * 60, now + 4)
@@ -518,27 +518,27 @@ function updateAudio() {
   const p = scrollProgress
 
   // Drone: gets deeper and louder
-  audio.drone1.frequency.value = 55 - p * 20 // descends in pitch
+  audio.drone1.frequency.value = 55 - p * 20
   audio.drone2.frequency.value = 27.5 - p * 10
-  audio.drone1Gain.gain.value = 0.06 + p * 0.08
-  audio.drone2Gain.gain.value = 0.04 + p * 0.1
+  audio.drone1Gain.gain.value = 0.15 + p * 0.2
+  audio.drone2Gain.gain.value = 0.1 + p * 0.25
 
   // Harmonic: more dissonant deeper
   audio.harmonic.frequency.value = 82 - p * 15 + Math.sin(Date.now() * 0.0003) * 2
-  audio.harmonicGain.gain.value = p * 0.04
+  audio.harmonicGain.gain.value = 0.02 + p * 0.08
 
   // Bubbles: fade out with depth
-  audio.bubbleGain.gain.value = Math.max(0.003, 0.025 * (1 - p * 1.5))
+  audio.bubbleGain.gain.value = Math.max(0.005, 0.06 * (1 - p * 1.5))
   audio.bubbleBP.frequency.value = 600 - p * 300
 
   // Pressure creak: appears in deep zones
   const creakAmount = Math.max(0, (p - 0.4) / 0.6)
-  audio.creakGain.gain.value = creakAmount * 0.015
+  audio.creakGain.gain.value = creakAmount * 0.04
   audio.creakBP.frequency.value = 150 + Math.sin(Date.now() * 0.0005) * 50
 
   // Horror pad: only in abyssal/hadal
   const horrorAmount = Math.max(0, (p - 0.6) / 0.4)
-  audio.horrorGain.gain.value = horrorAmount * 0.05
+  audio.horrorGain.gain.value = horrorAmount * 0.12
   audio.horrorFilter.frequency.value = 60 + horrorAmount * 40
 }
 
