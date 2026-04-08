@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ABYSSAL — Dive into the Deep</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <!-- Loading -->
+    <div id="loading">
+      <div class="loading-text">Descending...</div>
+      <div class="loading-depth">0m</div>
+    </div>
+
+    <!-- Three.js Canvas -->
+    <canvas id="ocean-canvas"></canvas>
+
+    <!-- HUD Overlay -->
+    <div id="hud">
+      <div id="depth-indicator">
+        <span id="depth-number">0</span><span class="depth-unit">m</span>
+      </div>
+      <div id="zone-name"></div>
+    </div>
+
+    <!-- Text Overlays (pinned to scroll) -->
+    <div id="scroll-container">
+      <section class="text-overlay" data-at="0">
+        <h1 class="hero-title">ABYSSAL</h1>
+        <p class="hero-sub">Move your mouse to look around. Scroll to descend.</p>
+        <div class="scroll-hint">
+          <div class="scroll-arrow"></div>
+        </div>
+      </section>
+
+      <section class="text-overlay" data-at="0.05">
+        <h2 class="zone-label">SUNLIGHT ZONE</h2>
+        <p class="zone-range">0 — 200m</p>
+        <p class="zone-desc">Where light still reaches.<br>Home to 90% of all marine life.</p>
+      </section>
+
+      <section class="text-overlay" data-at="0.18">
+        <h2 class="zone-label">TWILIGHT ZONE</h2>
+        <p class="zone-range">200 — 1,000m</p>
+        <p class="zone-desc">Light fades. Bioluminescence begins.<br>The hunters emerge.</p>
+      </section>
+
+      <section class="text-overlay" data-at="0.36">
+        <h2 class="zone-label">MIDNIGHT ZONE</h2>
+        <p class="zone-range">1,000 — 4,000m</p>
+        <p class="zone-desc">Eternal darkness.<br>No sunlight has ever touched this place.</p>
+      </section>
+
+      <section class="text-overlay" data-at="0.6">
+        <h2 class="zone-label">ABYSSAL ZONE</h2>
+        <p class="zone-range">4,000 — 6,000m</p>
+        <p class="zone-desc">Near freezing. Crushing pressure.<br>Life finds a way.</p>
+      </section>
+
+      <section class="text-overlay" data-at="0.8">
+        <h2 class="zone-label">HADAL ZONE</h2>
+        <p class="zone-range">6,000 — 11,000m</p>
+        <p class="zone-desc">The Mariana Trench.<br>The deepest point on Earth.</p>
+      </section>
+
+      <section class="text-overlay" data-at="0.95">
+        <h1 class="final-depth">11,034m</h1>
+        <p class="final-sub">Challenger Deep</p>
+      </section>
+
+      <!-- Invisible spacer for scroll length -->
+      <div id="scroll-spacer"></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
