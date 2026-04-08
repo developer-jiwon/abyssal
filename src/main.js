@@ -375,59 +375,171 @@ CREATURES.forEach((def) => {
 })
 
 // ============================================
-// SOUND — Underwater Ambience (Web Audio API)
+// SOUND — Cinematic Deep Sea Ambience
 // ============================================
-let audioCtx, audioStarted = false
+let audioStarted = false
+const audio = {}
 
 function initAudio() {
   if (audioStarted) return
   audioStarted = true
 
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  const ctx = new (window.AudioContext || window.webkitAudioContext)()
+  const master = ctx.createGain()
+  master.gain.value = 0.7
+  master.connect(ctx.destination)
 
-  // Deep rumble (low freq oscillator)
-  const rumbleOsc = audioCtx.createOscillator()
-  rumbleOsc.type = 'sine'
-  rumbleOsc.frequency.value = 40
-  const rumbleGain = audioCtx.createGain()
-  rumbleGain.gain.value = 0.06
-  rumbleOsc.connect(rumbleGain).connect(audioCtx.destination)
-  rumbleOsc.start()
+  // --- Layer 1: Deep ocean drone (low, majestic) ---
+  const drone1 = ctx.createOscillator()
+  drone1.type = 'sine'
+  drone1.frequency.value = 55 // A1 — deep, musical
+  const drone1Gain = ctx.createGain()
+  drone1Gain.gain.value = 0.08
+  drone1.connect(drone1Gain).connect(master)
+  drone1.start()
 
-  // Bubble noise
-  const bufferSize = 2 * audioCtx.sampleRate
-  const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate)
-  const output = noiseBuffer.getChannelData(0)
-  for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1
-  const noise = audioCtx.createBufferSource()
-  noise.buffer = noiseBuffer
-  noise.loop = true
+  // Sub-octave for weight
+  const drone2 = ctx.createOscillator()
+  drone2.type = 'sine'
+  drone2.frequency.value = 27.5 // A0 — sub bass
+  const drone2Gain = ctx.createGain()
+  drone2Gain.gain.value = 0.06
+  drone2.connect(drone2Gain).connect(master)
+  drone2.start()
 
-  const bandpass = audioCtx.createBiquadFilter()
-  bandpass.type = 'bandpass'
-  bandpass.frequency.value = 800
-  bandpass.Q.value = 2
+  // --- Layer 2: Eerie harmonic (fifth above, detuned) ---
+  const harmonic = ctx.createOscillator()
+  harmonic.type = 'triangle'
+  harmonic.frequency.value = 82 // E2-ish, slightly detuned
+  const harmonicGain = ctx.createGain()
+  harmonicGain.gain.value = 0
+  // LFO to fade in/out the harmonic
+  const harmonicLFO = ctx.createOscillator()
+  harmonicLFO.type = 'sine'
+  harmonicLFO.frequency.value = 0.05 // very slow
+  const harmonicLFOGain = ctx.createGain()
+  harmonicLFOGain.gain.value = 0.03
+  harmonicLFO.connect(harmonicLFOGain).connect(harmonicGain.gain)
+  harmonicLFO.start()
+  harmonic.connect(harmonicGain).connect(master)
+  harmonic.start()
 
-  const noiseGain = audioCtx.createGain()
-  noiseGain.gain.value = 0.015
-  noise.connect(bandpass).connect(noiseGain).connect(audioCtx.destination)
-  noise.start()
+  // --- Layer 3: Water/bubble texture ---
+  const bufSize = 4 * ctx.sampleRate
+  const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate)
+  const noiseData = noiseBuf.getChannelData(0)
+  for (let i = 0; i < bufSize; i++) noiseData[i] = Math.random() * 2 - 1
 
-  // Store for depth-based control
-  window._audioGains = { rumble: rumbleGain, noise: noiseGain, rumbleOsc }
+  const bubbleNoise = ctx.createBufferSource()
+  bubbleNoise.buffer = noiseBuf
+  bubbleNoise.loop = true
+  const bubbleBP = ctx.createBiquadFilter()
+  bubbleBP.type = 'bandpass'
+  bubbleBP.frequency.value = 600
+  bubbleBP.Q.value = 3
+  const bubbleGain = ctx.createGain()
+  bubbleGain.gain.value = 0.02
+  bubbleNoise.connect(bubbleBP).connect(bubbleGain).connect(master)
+  bubbleNoise.start()
+
+  // --- Layer 4: Pressure creak (metallic, deep zones) ---
+  const creakNoise = ctx.createBufferSource()
+  creakNoise.buffer = noiseBuf
+  creakNoise.loop = true
+  const creakBP = ctx.createBiquadFilter()
+  creakBP.type = 'bandpass'
+  creakBP.frequency.value = 200
+  creakBP.Q.value = 15 // narrow = metallic
+  const creakGain = ctx.createGain()
+  creakGain.gain.value = 0
+  creakNoise.connect(creakBP).connect(creakGain).connect(master)
+  creakNoise.start()
+
+  // --- Layer 5: Whale-like call (slow pitch sweep) ---
+  const whale = ctx.createOscillator()
+  whale.type = 'sine'
+  whale.frequency.value = 180
+  const whaleGain = ctx.createGain()
+  whaleGain.gain.value = 0
+  const whaleFilter = ctx.createBiquadFilter()
+  whaleFilter.type = 'lowpass'
+  whaleFilter.frequency.value = 400
+  whale.connect(whaleFilter).connect(whaleGain).connect(master)
+  whale.start()
+
+  // Whale call: periodic pitch sweep
+  function whaleCall() {
+    const now = ctx.currentTime
+    // Only in shallow-mid depths
+    if (scrollProgress < 0.5) {
+      whaleGain.gain.setValueAtTime(0, now)
+      whaleGain.gain.linearRampToValueAtTime(0.04, now + 2)
+      whaleGain.gain.linearRampToValueAtTime(0, now + 6)
+      whale.frequency.setValueAtTime(200 + Math.random() * 80, now)
+      whale.frequency.linearRampToValueAtTime(120 + Math.random() * 60, now + 4)
+    }
+    setTimeout(whaleCall, 8000 + Math.random() * 15000)
+  }
+  setTimeout(whaleCall, 3000)
+
+  // --- Layer 6: Deep zone horror pad ---
+  const horror = ctx.createOscillator()
+  horror.type = 'sawtooth'
+  horror.frequency.value = 36
+  const horrorFilter = ctx.createBiquadFilter()
+  horrorFilter.type = 'lowpass'
+  horrorFilter.frequency.value = 80
+  horrorFilter.Q.value = 5
+  const horrorGain = ctx.createGain()
+  horrorGain.gain.value = 0
+  horror.connect(horrorFilter).connect(horrorGain).connect(master)
+  horror.start()
+
+  audio.drone1Gain = drone1Gain
+  audio.drone2Gain = drone2Gain
+  audio.drone1 = drone1
+  audio.drone2 = drone2
+  audio.harmonicGain = harmonicGain
+  audio.harmonic = harmonic
+  audio.bubbleGain = bubbleGain
+  audio.bubbleBP = bubbleBP
+  audio.creakGain = creakGain
+  audio.creakBP = creakBP
+  audio.horrorGain = horrorGain
+  audio.horrorFilter = horrorFilter
+  audio.whaleGain = whaleGain
 }
 
-// Start audio on first interaction
 document.addEventListener('click', initAudio, { once: true })
 document.addEventListener('scroll', initAudio, { once: true })
 
 function updateAudio() {
-  if (!window._audioGains) return
-  const { rumble, noise, rumbleOsc } = window._audioGains
-  // Deeper = louder rumble, lower freq, less bubble noise
-  rumble.gain.value = 0.04 + scrollProgress * 0.12
-  rumbleOsc.frequency.value = 40 - scrollProgress * 20
-  noise.gain.value = Math.max(0.002, 0.015 - scrollProgress * 0.015)
+  if (!audio.drone1Gain) return
+  const p = scrollProgress
+
+  // Drone: gets deeper and louder
+  audio.drone1.frequency.value = 55 - p * 20 // descends in pitch
+  audio.drone2.frequency.value = 27.5 - p * 10
+  audio.drone1Gain.gain.value = 0.06 + p * 0.08
+  audio.drone2Gain.gain.value = 0.04 + p * 0.1
+
+  // Harmonic: more dissonant deeper
+  audio.harmonic.frequency.value = 82 - p * 15 + Math.sin(Date.now() * 0.0003) * 2
+  audio.harmonicGain.gain.value = p * 0.04
+
+  // Bubbles: fade out with depth
+  audio.bubbleGain.gain.value = Math.max(0.003, 0.025 * (1 - p * 1.5))
+  audio.bubbleBP.frequency.value = 600 - p * 300
+
+  // Pressure creak: appears in deep zones
+  const creakAmount = Math.max(0, (p - 0.4) / 0.6)
+  audio.creakGain.gain.value = creakAmount * 0.015
+  audio.creakBP.frequency.value = 150 + Math.sin(Date.now() * 0.0005) * 50
+
+  // Horror pad: only in abyssal/hadal
+  const horrorAmount = Math.max(0, (p - 0.6) / 0.4)
+  audio.horrorGain.gain.value = horrorAmount * 0.05
+  audio.horrorFilter.frequency.value = 60 + horrorAmount * 40
 }
 
 // ============================================
